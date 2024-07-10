@@ -31,6 +31,8 @@ class Interpreter {
         map <int,int> memory = {
             {0,1}
         };
+        
+        map <int, pair<int,int>> loops;
 
         Token next_token(){
             char currentchar = text[pos];
@@ -90,51 +92,65 @@ class Interpreter {
                 cout << "Error! " << currenttoken;
                 break;
             }
+            
         }
 
         void findloops() {
-            int pointerpos = 0;
-            Token currenttoken = next_token();
-            while (currenttoken.type != END) {
-                if (currenttoken.type == LOOPSTART) {
-                    loopstarts.push_back(pos);
-                    looppointers.push_back(pointerpos);
-                }        
-                if (currenttoken.type == LOOPEND) {
-                    loopends.push_back(pos);
+            vector<int> used = {};
+            int pointer = 0;
+            //cout << text.length();
+            for (int i = 0; i<text.length(); i++) {
+                int starts =0,ends = 0;
+
+                if (text[i] == '>') {
+                    pointer += 1;
                 }
-                if (currenttoken.type == RIGHT) {
-                    pointerpos += 1;
+
+                if (text[i] == '<') {
+                    pointer -= 1;
                 }
-                if (currenttoken.type == LEFT) {
-                    pointerpos -= 1;
+
+                if (text[i] == '[')  {
+                    
+                    if (find(used.begin(), used.end(), i) == used.end()) {
+                        for (int b = i; b < text.length(); b++) {
+                            if (find(used.begin(), used.end(), b) != used.end()) {
+                                break;
+                            } 
+                            if (text[b] == '[') {
+                                starts += 1;
+                            }
+
+                            if (text[b] == ']') {
+                                ends += 1;
+                            }
+                            if (starts == ends) {
+                                loops[b] = make_pair(i,pointer);
+                                used.push_back(i);
+                                used.push_back(b);
+                                break;
+                            }
+
+                        }
+                    }
                 }
-                currenttoken = next_token();
             }
-            currenttoken.type = "NULL";
-            currenttoken.value = 0;
-            pos = 0;
         }
 
         void expr(){
             findloops();
-            reverse(loopends.begin(),loopends.end());
             string output,input;
             Token currenttoken = next_token();
             currenttoken = next_token();
             while (currenttoken.type != END) {      
-
                 if (currenttoken.type == LOOPEND) {
-                    if (find(loopends.begin(),loopends.end(), pos) != loopends.end()) {
-                        auto it = find(loopends.begin(),loopends.end(), pos);
-                        if (it != loopends.end()) {
-                            int index = it - loopends.begin();
-                            if (memory[looppointers[index]] != 0) {
-                                pos = loopstarts[index];
-                            }
-                        }
+                    if (loops.find(pos) == loops.end()) {
+                        if (memory[loops[pos-1].second] != 0) {
+                            pos = loops[pos-1].first;
+                        }      
                     }
                 }
+                
                 
                 if (currenttoken.type == PLUS){
                     memory[currentpointer] += 1;
@@ -168,8 +184,8 @@ class Interpreter {
 };
 
 int main() {
-    Interpreter Interpreter;
 
+    Interpreter Interpreter;
     ifstream file("brainfuck.bf");
     string str, filetext; 
     while (std::getline(file, str)){filetext+=str;};
